@@ -55,7 +55,7 @@
 
 ### Requirements
 
-* C++11 and above, which is cross-platform
+* C++11 or above, which is cross-platform
 
 ### Installation and introduction
 
