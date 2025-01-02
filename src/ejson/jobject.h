@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include <limits>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
@@ -13,8 +13,13 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility>
 #include <vector>
+
+#ifdef USE_FLAT_HASH_MAP
+
+#include <parallel_hashmap/phmap.h>
+
+#endif
 
 #include "autogen.h"
 #include "noncopyable.h"
@@ -36,7 +41,11 @@ using bool_t   = bool;
 using double_t = double;
 using str_t    = string_view;
 using list_t   = std::vector<JObject>;
-using dict_t   = std::map<str_t, JObject>;
+#ifdef USE_FLAT_HASH_MAP
+using dict_t = phmap::flat_hash_map<str_t, JObject>;
+#else
+using dict_t = std::map<str_t, JObject>;
+#endif
 
 #define EJSON_TYPE_IS(typea, typeb) std::is_same<typea, typeb>::value
 
@@ -374,8 +383,6 @@ public:
     */
    [[nodiscard]] Type type() const { return m_type; }
 
-
-
    /**
     * Serialize to the json string
     * @param indent The indent size used for beautification, if less than 0, it
@@ -534,7 +541,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::map
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <class T>
       ObjectRef &get_to(std::map<std::string, T> &dst)
@@ -551,7 +558,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::unordered_map
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <class T>
       ObjectRef &get_to(std::unordered_map<std::string, T> &dst)
@@ -568,7 +575,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::set
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <class T>
       ObjectRef &get_to(std::set<T> &dst)
@@ -581,7 +588,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::unordered_set
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <class T>
       ObjectRef &get_to(std::unordered_set<T> &dst)
@@ -594,7 +601,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::vector
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <class T>
       ObjectRef &get_to(std::vector<T> &dst)
@@ -673,7 +680,7 @@ public:
       /**
        * Get the value from JObject and deposit it in custom type
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <typename T, typename std::enable_if<
                               !is_basic_type<decay<T>>() &&
@@ -696,7 +703,7 @@ public:
       /**
        * Get the value from JObject and deposit it in basic type
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <typename T, typename std::enable_if<is_basic_type<decay<T>>(),
                                                     bool>::type = true>
@@ -716,7 +723,7 @@ public:
       /**
        * Get the value from JObject and deposit it in std::string
        * @tparam T
-       * @param src
+       * @param dst
        */
       template <typename T,
                 typename std::enable_if<EJSON_TYPE_IS(decay<T>, std::string),
@@ -751,17 +758,19 @@ public:
     * The requirement must be dic t or list t, otherwise an exception is thrown
     * @return
     */
-   [[nodiscard]] size_t size()const {
-     if(m_type == kDict){
+   [[nodiscard]] size_t size() const
+   {
+      if (m_type == kDict)
+      {
          auto &dict = Value<dict_t>();
          return dict.size();
-     }
-     if(m_type == kList)
-     {
-         auto& list = Value<list_t>();
+      }
+      if (m_type == kList)
+      {
+         auto &list = Value<list_t>();
          return list.size();
-     }
-     EJSON_THROW_ERROR_POS("not dict or list type! in JObject::size()");
+      }
+      EJSON_THROW_ERROR_POS("not dict or list type! in JObject::size()");
    }
 
 private:
@@ -800,7 +809,9 @@ private:
 namespace ejson_literals {
 /**
  * The function only works on the first call
- * @param d  Used to set the number of decimal places reserved for float/double，\n By default, the entire float number is max_digits10 in length
+ * @param d  Used to set the number of decimal places reserved for
+ * float/double，\n By default, the entire float number is max_digits10 in
+ * length
  * @return The number of bits currently reserved
  */
 int float_d(int d = std::numeric_limits<ejson::double_t>::max_digits10);
